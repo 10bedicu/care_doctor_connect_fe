@@ -19,11 +19,12 @@ on:
         type: string
 
 concurrency:
-  # A new push to a PR cancels that PR's older run. Pushes to develop/main
-  # and manual runs (keyed by care_fe_ref) queue instead, so every branch
-  # commit and every requested care_fe ref gets a finished run.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.care_fe_ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A new push to a PR cancels that PR's older run. Every other run (pushes
+  # to develop/main, manual runs) gets a group of its own, so none is
+  # cancelled or dropped. Sharing a group wouldn't queue them: GitHub keeps
+  # only one pending run per group and drops the rest.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: "24"
