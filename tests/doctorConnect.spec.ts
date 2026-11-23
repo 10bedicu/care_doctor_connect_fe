@@ -80,7 +80,7 @@ test.describe("Doctor Connect", () => {
     const links = await recordExternalLinks(page);
 
     await departmentSection(sheet, data.department)
-      .getByRole("button", { name: "Call" })
+      .getByRole("button", { name: `Call ${data.doctor.name}`, exact: true })
       .click();
 
     await expect
@@ -98,7 +98,10 @@ test.describe("Doctor Connect", () => {
     const phone = data.doctor.phone.replace(/\D/g, "");
 
     await departmentSection(sheet, data.department)
-      .getByRole("button", { name: "WhatsApp" })
+      .getByRole("button", {
+        name: `Message ${data.doctor.name} on WhatsApp`,
+        exact: true,
+      })
       .click();
 
     // The app link first, then the wa.me fallback after ~1.25s.

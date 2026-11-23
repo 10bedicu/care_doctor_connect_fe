@@ -131,7 +131,7 @@ export default function UserCard({ user: facilityUser }: UserCardProps) {
                     variant="outline"
                     size="icon"
                     className="rounded-full size-10 border-green-500/20"
-                    aria-label={t("call")}
+                    aria-label={t("call_user", { userName: userFullName })}
                     onClick={() =>
                       window.open(`tel:${user.phone_number.replace(/\s/g, "")}`)
                     }
@@ -150,7 +150,7 @@ export default function UserCard({ user: facilityUser }: UserCardProps) {
                     variant="outline"
                     size="icon"
                     className="rounded-full size-10 border-green-500/20 text-primary hover:text-primary"
-                    aria-label={t("whatsapp")}
+                    aria-label={t("whatsapp_user", { userName: userFullName })}
                     onClick={connectOnWhatsApp}
                   >
                     <svg
@@ -188,7 +188,10 @@ export default function UserCard({ user: facilityUser }: UserCardProps) {
                       ? "text-green-600 bg-green-50 hover:bg-green-100"
                       : "hover:bg-background"
                   )}
-                  aria-label={copied ? t("copied") : t("copynumber")}
+                  aria-label={t(
+                    copied ? "user_number_copied" : "copy_user_number",
+                    { userName: userFullName }
+                  )}
                   onClick={() => {
                     navigator.clipboard.writeText(user.phone_number);
                     toast.success(t("phone_number_copied"));
