@@ -19,8 +19,11 @@ on:
         type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A new push to a PR cancels that PR's older run. Pushes to develop/main
+  # and manual runs (keyed by care_fe_ref) queue instead, so every branch
+  # commit and every requested care_fe ref gets a finished run.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.care_fe_ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: "24"
