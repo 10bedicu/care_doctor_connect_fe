@@ -20,7 +20,7 @@ on:
         type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -31,7 +31,7 @@ env:
   PLUGIN_URL: http://localhost:5173
   # care's db/redis/minio plus care_fe's CI backend services. Relative paths
   # in the overlay resolve against care/, the directory of the first file.
-  COMPOSE_FILE: care/docker-compose.yaml:care_fe/.github/runner-files/docker-compose.ci.yaml
+  COMPOSE_FILE: care/docker-compose.yaml:care_fe_ci/.github/runner-files/docker-compose.ci.yaml
 
 jobs:
   test:
@@ -51,6 +51,16 @@ jobs:
           ref: ${{ env.CARE_FE_REF }}
           path: care_fe
 
+      # care_fe's CI backend files always come from develop, so testing
+      # against another care_fe_ref doesn't also change the backend setup.
+      - name: Checkout care_fe CI files
+        uses: actions/checkout@v7
+        with:
+          repository: ohcnetwork/care_fe
+          ref: develop
+          path: care_fe_ci
+          sparse-checkout: .github/runner-files
+
       - name: Resolve backend image
         id: image
         run: |
@@ -64,7 +74,7 @@ jobs:
           {
             echo "CARE_IMAGE=$image"
             # care_fe's public test key; the compose overlay requires it.
-            echo "JWKS_BASE64=$(cat care_fe/.github/runner-files/jwks.b64.txt)"
+            echo "JWKS_BASE64=$(cat care_fe_ci/.github/runner-files/jwks.b64.txt)"
           } >> "$GITHUB_ENV"
 
       - name: Checkout care

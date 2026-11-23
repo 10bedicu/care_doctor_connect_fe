@@ -59,7 +59,7 @@ export class CareApi {
     const response = await request.post(`${CARE_API_URL}/api/v1/auth/login/`, {
       data: credentials,
     });
-    expect(response, `log in as ${credentials.username}`).toBeOK();
+    await expect(response, `log in as ${credentials.username}`).toBeOK();
     const { access } = await response.json();
     return new CareApi(request, access);
   }

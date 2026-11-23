@@ -27,19 +27,15 @@ async function filterByRole(page: Page, sheet: Locator, role: string) {
   const roleFilter = sheet.getByRole("combobox");
   await expect(roleFilter).toHaveText("Filter by role");
   await roleFilter.click();
-  // Options come from a server-side search; wait for it rather than racing it.
-  const search = page.waitForResponse(
-    (response) =>
-      response.url().includes("/api/v1/role/") &&
-      new URL(response.url()).searchParams.get("name") === role,
-    { timeout: 30_000 },
-  );
   await page.getByPlaceholder("Search option...").fill(role);
-  await search;
-  await page
+  // Options come from a server-side role search (or, with
+  // `allowed_filter_roles` configured, a local filter), and the search can
+  // be slow, so give the option longer than the default to appear.
+  const option = page
     .getByRole("option")
-    .filter({ has: page.getByText(role, { exact: true }) })
-    .click();
+    .filter({ has: page.getByText(role, { exact: true }) });
+  await expect(option).toBeVisible({ timeout: 30_000 });
+  await option.click();
   await expect(roleFilter).toHaveText(role);
 }
 
