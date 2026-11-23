@@ -79,6 +79,7 @@ The tests need:
 
 - A CARE backend on `http://localhost:9000` loaded with `python manage.py load_fixtures`. The setup logs in as `admin` / `admin` and adds the fixture doctor and nurse to a `Doctor Connect E2E` department in `FACILITY WITH PATIENTS`.
 - A CARE frontend on `http://localhost:4000` with this plugin enabled (see [Setup](#setup)).
+- No [allowlist](#supported-keys) that hides the test data. If the plugin's config in CARE (**Admin → Apps**) sets `allowed_facility_organizations`, it must include `Doctor Connect E2E`. If it sets `allowed_filter_roles`, it must include `Doctor`. Leaving both unset works too, which is how CI runs.
 
 ```bash
 npx playwright install chromium   # first time only
