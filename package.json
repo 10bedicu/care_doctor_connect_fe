@@ -8,7 +8,8 @@
   "scripts": {
     "start": "vite build --watch & vite preview --port 6173",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.4",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.3",

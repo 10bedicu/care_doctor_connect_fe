@@ -27,7 +27,7 @@ In CARE admin, set the plugin's `meta` JSON to:
 
 ```json
 {
-  "url": "https://doctor-connect.example.org/assets/manifest.js",
+  "url": "https://doctor-connect.example.org/assets/remoteEntry.js",
   "name": "care_doctor_connect_fe",
   "allowed_facility_organizations": ["Health Department"],
   "allowed_filter_roles": ["Doctor", "Nurse"]
@@ -57,7 +57,11 @@ npm install
 npm run start    # builds in watch mode and serves on http://localhost:6173
 ```
 
-Then in your local CARE frontend `.env`, register this plugin's manifest URL via `REACT_ENABLED_APPS` (or via the admin Apps page) pointing to `http://localhost:6173/assets/manifest.js`.
+Then enable the plugin in your local CARE frontend's `.env.local` (or via the admin Apps page) by pointing `REACT_ENABLED_APPS` at the plugin's federation entry:
+
+```bash
+REACT_ENABLED_APPS="10bedicu/care_doctor_connect_fe@localhost:6173/assets/remoteEntry.js"
+```
 
 ### Build
 
@@ -66,3 +70,21 @@ npm run build
 ```
 
 The federated build is emitted to `dist/`.
+
+## Testing
+
+End-to-end tests live in `tests/` and use [Playwright](https://playwright.dev). They open an encounter, check the Doctor Connect sheet lists department members, filter by role, and check the call and WhatsApp actions. The call and WhatsApp hand-offs (`tel:`, `whatsapp://`, `wa.me`) are recorded rather than opened, so no "Open app?" prompt appears.
+
+The tests need:
+
+- A CARE backend on `http://localhost:9000` loaded with `python manage.py load_fixtures`. The setup logs in as `admin` / `admin` and adds the fixture doctor and nurse to a `Doctor Connect E2E` department in `FACILITY WITH PATIENTS`.
+- A CARE frontend on `http://localhost:4000` with this plugin enabled (see [Setup](#setup)).
+
+```bash
+npx playwright install chromium   # first time only
+npm run test:e2e
+```
+
+Override the URLs with `CARE_FE_URL` and `REACT_CARE_API_URL` if yours differ.
+
+CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop` built with this plugin enabled.

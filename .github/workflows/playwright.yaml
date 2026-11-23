@@ -1,0 +1,167 @@
+name: Playwright Tests
+
+# Runs the Doctor Connect E2E tests against CARE with this plugin enabled.
+# Modelled on ohcnetwork/care_fe's Playwright workflow, in a single job:
+# - Backend: the published ghcr.io/ohcnetwork/care image with care_fe's CI
+#   compose overlay, migrated and loaded with `load_fixtures`.
+# - Frontend: care_fe built with REACT_ENABLED_APPS pointing at this plugin's
+#   build, which is served on localhost:5173.
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      care_fe_ref:
+        description: "care_fe branch, tag, or commit to test against"
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+  CARE_FE_REF: ${{ inputs.care_fe_ref || 'develop' }}
+  CARE_FE_URL: http://localhost:4000
+  REACT_CARE_API_URL: http://localhost:9000
+  PLUGIN_URL: http://localhost:5173
+  # care's db/redis/minio plus care_fe's CI backend services. Relative paths
+  # in the overlay resolve against care/, the directory of the first file.
+  COMPOSE_FILE: care/docker-compose.yaml:care_fe/.github/runner-files/docker-compose.ci.yaml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Checkout care_fe
+        uses: actions/checkout@v7
+        with:
+          repository: ohcnetwork/care_fe
+          ref: ${{ env.CARE_FE_REF }}
+          path: care_fe
+
+      - name: Resolve backend image
+        id: image
+        run: |
+          # care publishes :latest from develop. Pin its digest so the image,
+          # the care checkout and its compose files all match.
+          digest=$(docker buildx imagetools inspect ghcr.io/ohcnetwork/care:latest --format '{{json .Manifest}}' | jq -r .digest)
+          image=ghcr.io/ohcnetwork/care@$digest
+          ref=$(docker buildx imagetools inspect "$image" --format '{{json .Image}}' \
+            | jq -r '."linux/amd64".config.Labels."org.opencontainers.image.revision"')
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          {
+            echo "CARE_IMAGE=$image"
+            # care_fe's public test key; the compose overlay requires it.
+            echo "JWKS_BASE64=$(cat care_fe/.github/runner-files/jwks.b64.txt)"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout care
+        uses: actions/checkout@v7
+        with:
+          repository: ohcnetwork/care
+          ref: ${{ steps.image.outputs.ref }}
+          path: care
+
+      # Migrations run in the background while the frontends build.
+      - name: Start database and run migrations
+        run: |
+          docker compose pull --quiet --policy missing
+          docker compose up -d --wait db redis
+          docker compose run -d --name care-migrate --no-deps backend sh -c \
+            "python manage.py migrate --noinput && python manage.py sync_permissions_roles && python manage.py sync_valueset"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            care_fe/package-lock.json
+
+      - name: Build and serve the plugin
+        run: |
+          npm ci
+          npm run build
+          nohup npx vite preview --port 5173 --strictPort > plugin-preview.log 2>&1 &
+
+      - name: Install care_fe dependencies
+        working-directory: care_fe
+        run: npm ci
+
+      - name: Build care_fe with the plugin enabled
+        working-directory: care_fe
+        env:
+          NODE_ENV: production
+          REACT_ENABLED_APPS: ${{ github.repository }}@localhost:5173/assets/remoteEntry.js
+        run: npm run build
+
+      - name: Serve care_fe
+        working-directory: care_fe
+        run: nohup npm run preview > ../care-fe-preview.log 2>&1 &
+
+      - name: Start backend and load fixtures
+        run: |
+          status=$(timeout 900 docker wait care-migrate) || status=timeout
+          if [ "$status" != 0 ]; then
+            docker logs care-migrate
+            echo "::error::Migrations failed (exit status: $status)"
+            exit 1
+          fi
+          docker compose up -d --wait backend celery
+          # The published image has no dev packages; fixtures need Faker.
+          faker=$(jq -r .develop.faker.version care/Pipfile.lock)
+          docker compose run --rm --no-deps backend \
+            sh -c "pip install --quiet 'faker$faker' && python manage.py load_fixtures"
+
+      - name: Wait for the plugin and care_fe
+        run: |
+          for url in "$PLUGIN_URL/assets/remoteEntry.js" "$CARE_FE_URL" "$REACT_CARE_API_URL/ping/"; do
+            if ! timeout 120 bash -c "until curl -fsS '$url' > /dev/null; do sleep 1; done"; then
+              cat plugin-preview.log care-fe-preview.log || true
+              echo "::error::$url did not respond"
+              exit 1
+            fi
+          done
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      - name: Backend logs
+        if: failure()
+        run: docker compose logs backend --tail 200
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Stop backend
+        if: always()
+        run: docker compose down || true
