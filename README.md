@@ -12,9 +12,11 @@ A federated micro-frontend plugin for [CARE](https://github.com/ohcnetwork/care_
 
 ## Configuration
 
-The plugin reads runtime configuration from the `meta` object of its `PlugConfig` in CARE core (managed under **Admin → Apps** in the CARE admin panel). Configuration is delivered to the plugin via the `__meta` prop injected by CARE's `PLUGIN_Component`.
+The plugin reads runtime configuration from the `config` object inside the `meta` of its `PlugConfig` in CARE core (managed under **Admin → Apps** in the CARE admin panel). Configuration is delivered to the plugin via the `__meta` prop injected by CARE's `PLUGIN_Component`.
 
 ### Supported keys
+
+These keys go in `meta.config`, not at the top level of `meta`.
 
 | Key                              | Type       | Description                                                                                                                             |
 | -------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,8 +31,10 @@ In CARE admin, set the plugin's `meta` JSON to:
 {
   "url": "https://doctor-connect.example.org/assets/remoteEntry.js",
   "name": "care_doctor_connect_fe",
-  "allowed_facility_organizations": ["Health Department"],
-  "allowed_filter_roles": ["Doctor", "Nurse"]
+  "config": {
+    "allowed_facility_organizations": ["Health Department"],
+    "allowed_filter_roles": ["Doctor", "Nurse"]
+  }
 }
 ```
 
@@ -66,7 +70,7 @@ Then enable the plugin in your local CARE with a plugin config. As an admin, go 
 }
 ```
 
-Keep the slug and `name` as `care_doctor_connect_fe`: CARE loads the plugin's translations under that name. Add any [configuration keys](#supported-keys) to the same JSON.
+Keep the slug and `name` as `care_doctor_connect_fe`: CARE loads the plugin's translations under that name. Add any [configuration keys](#supported-keys) under a `config` object in the same JSON (see the [example](#example)).
 
 > The older way, `REACT_ENABLED_APPS="10bedicu/care_doctor_connect_fe@localhost:6173/assets/remoteEntry.js"` in the CARE frontend's `.env.local`, still works but is deprecated.
 
@@ -93,13 +97,15 @@ The setup logs in as `admin` / `admin` and prepares the rest:
 - **Enables the plugin.** If CARE has no plugin config for `care_doctor_connect_fe`, the setup creates one pointing at the served plugin, as you would in **Admin → Apps** (see [Setup](#setup)). An existing config is left as it is, so its `url` must point at the served plugin.
 - **Adds test data.** It adds the fixture doctor and nurse to a `Doctor Connect E2E` department in `FACILITY WITH PATIENTS`.
 
-If the plugin's config sets an [allowlist](#supported-keys), it must not hide that data: `allowed_facility_organizations` must include `Doctor Connect E2E`, and `allowed_filter_roles` must include `Doctor`. The config the setup creates sets neither.
+If the plugin's config sets an [allowlist](#supported-keys) in `meta.config`, it must not hide that data: `allowed_facility_organizations` must include `Doctor Connect E2E`, and `allowed_filter_roles` must include `Doctor`. The config the setup creates sets neither.
+
+> If your CARE frontend still enables the plugin with `REACT_ENABLED_APPS`, CARE loads the plugin from that URL instead of the plugin config's, so the tests may run against a different or stale build. Remove the `REACT_ENABLED_APPS` entry and restart the frontend before testing.
 
 ```bash
 npx playwright install chromium   # first time only
 npm run test:e2e
 ```
 
-Override the URLs with `REACT_CARE_FE_URL`, `REACT_CARE_API_URL` and `REACT_PLUGIN_URL` if yours differ.
+Override the URLs with `REACT_CARE_FE_URL`, `REACT_CARE_API_URL` and `REACT_PLUGIN_URL` if yours differ. `REACT_PLUGIN_URL` must be an origin with no path, such as `http://localhost:6173`, because CARE loads a plugin's translations from the origin of its URL.
 
 CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop`. The test setup enables the plugin there too.

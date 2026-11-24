@@ -1,4 +1,4 @@
-import { test as setup } from "@playwright/test";
+import { expect, test as setup } from "@playwright/test";
 
 import { I18NNAMESPACE } from "../../src/lib/constants";
 import { CareApi, FIXTURE_FACILITY, fullName } from "../helper/careApi";
@@ -8,7 +8,9 @@ import {
 } from "../helper/doctorConnectData";
 
 /** Where the plugin's build is served (`npm run start` uses this port). */
-const PLUGIN_URL = process.env.REACT_PLUGIN_URL ?? "http://localhost:6173";
+const PLUGIN_URL = new URL(
+  process.env.REACT_PLUGIN_URL ?? "http://localhost:6173",
+);
 
 /**
  * Without a plugin config, CARE doesn't load the plugin and the encounter page
@@ -16,11 +18,18 @@ const PLUGIN_URL = process.env.REACT_PLUGIN_URL ?? "http://localhost:6173";
  * translation namespace, or its labels show as raw keys.
  */
 setup("enable the plugin", async ({ request }) => {
+  // CARE loads a plugin's translations from the origin of its URL, so a
+  // plugin served under a path would render raw translation keys.
+  expect(
+    PLUGIN_URL.pathname,
+    `REACT_PLUGIN_URL must be an origin with no path, not ${PLUGIN_URL}`,
+  ).toBe("/");
+
   const api = await CareApi.login(request);
   await api.ensurePlugConfig({
     slug: I18NNAMESPACE,
     meta: {
-      url: `${PLUGIN_URL}/assets/remoteEntry.js`,
+      url: new URL("/assets/remoteEntry.js", PLUGIN_URL).href,
       name: I18NNAMESPACE,
     },
   });
