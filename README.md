@@ -72,6 +72,8 @@ Then enable the plugin in your local CARE with a plugin config. As an admin, go 
 
 Keep the slug and `name` as `care_doctor_connect_fe`: CARE loads the plugin's translations under that name. Add any [configuration keys](#supported-keys) under a `config` object in the same JSON (see the [example](#example)).
 
+After saving a new config, reload the page. The plugin appears straight away, but CARE only loads a plugin's translations when the page loads, so until then its labels show as raw translation keys.
+
 > The older way, `REACT_ENABLED_APPS="10bedicu/care_doctor_connect_fe@localhost:6173/assets/remoteEntry.js"` in the CARE frontend's `.env.local`, still works but is deprecated.
 
 ### Build
