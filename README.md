@@ -84,15 +84,22 @@ End-to-end tests live in `tests/` and use [Playwright](https://playwright.dev). 
 
 The tests need:
 
-- A CARE backend on `http://localhost:9000` loaded with `python manage.py load_fixtures`. The setup logs in as `admin` / `admin` and adds the fixture doctor and nurse to a `Doctor Connect E2E` department in `FACILITY WITH PATIENTS`.
-- A CARE frontend on `http://localhost:4000` with this plugin enabled (see [Setup](#setup)).
-- No [allowlist](#supported-keys) that hides the test data. If the plugin's config in CARE (**Admin → Apps**) sets `allowed_facility_organizations`, it must include `Doctor Connect E2E`. If it sets `allowed_filter_roles`, it must include `Doctor`. Leaving both unset works too, which is how CI runs.
+- A CARE backend on `http://localhost:9000` loaded with `python manage.py load_fixtures`.
+- A CARE frontend on `http://localhost:4000`.
+- This plugin served on `http://localhost:6173` (`npm run start`).
+
+The setup logs in as `admin` / `admin` and prepares the rest:
+
+- **Enables the plugin.** If CARE has no plugin config for `care_doctor_connect_fe`, the setup creates one pointing at the served plugin, as you would in **Admin → Apps** (see [Setup](#setup)). An existing config is left as it is, so its `url` must point at the served plugin.
+- **Adds test data.** It adds the fixture doctor and nurse to a `Doctor Connect E2E` department in `FACILITY WITH PATIENTS`.
+
+If the plugin's config sets an [allowlist](#supported-keys), it must not hide that data: `allowed_facility_organizations` must include `Doctor Connect E2E`, and `allowed_filter_roles` must include `Doctor`. The config the setup creates sets neither.
 
 ```bash
 npx playwright install chromium   # first time only
 npm run test:e2e
 ```
 
-Override the URLs with `REACT_CARE_FE_URL` and `REACT_CARE_API_URL` if yours differ.
+Override the URLs with `REACT_CARE_FE_URL`, `REACT_CARE_API_URL` and `REACT_PLUGIN_URL` if yours differ.
 
-CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop`, with this plugin enabled through a plugin config.
+CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop`. The test setup enables the plugin there too.

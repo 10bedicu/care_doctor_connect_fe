@@ -42,6 +42,11 @@ interface OrganizationMember {
   role: { id: string };
 }
 
+export interface PlugConfig {
+  slug: string;
+  meta: Record<string, unknown>;
+}
+
 /** Same formatting as the plugin's `formatUserName`. */
 export const fullName = (user: CareUser) =>
   [user.prefix, user.first_name, user.last_name, user.suffix]
@@ -153,6 +158,18 @@ export class CareApi {
       await this.call("POST", base, { user: userId, role: roleId });
     } else if (member.role.id !== roleId) {
       await this.call("PUT", `${base}${member.id}/`, { role: roleId });
+    }
+  }
+
+  /**
+   * Enables a plugin the way Admin → Apps does, by creating its plugin
+   * config. An existing config with this slug is left as it is.
+   */
+  async ensurePlugConfig(config: PlugConfig) {
+    const base = "/api/v1/plug_config/";
+    const { configs } = await this.call<{ configs: PlugConfig[] }>("GET", base);
+    if (!configs.some((c) => c.slug === config.slug)) {
+      await this.call("POST", base, config);
     }
   }
 }
