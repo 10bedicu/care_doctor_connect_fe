@@ -108,7 +108,10 @@ test.describe("Doctor Connect", () => {
     await expect.poll(async () => (await links.urls()).length).toBe(2);
     const [appLink, webLink] = (await links.urls()).map((url) => new URL(url));
 
+    // whatsapp://send opens a chat with the message prefilled. For this
+    // scheme the URL parser puts the action ("send") in the host.
     expect(appLink.protocol).toBe("whatsapp:");
+    expect(appLink.host).toBe("send");
     expect(appLink.searchParams.get("phone")).toBe(phone);
 
     expect(webLink.origin).toBe("https://wa.me");
