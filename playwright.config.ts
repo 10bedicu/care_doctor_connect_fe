@@ -1,13 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * E2E tests run against a CARE frontend that has this plugin enabled
- * (REACT_ENABLED_APPS) and a CARE backend loaded with `load_fixtures`.
+ * E2E tests run against a CARE frontend that has this plugin enabled and a
+ * CARE backend loaded with `load_fixtures`.
  *
- * CARE_FE_URL         CARE frontend, default http://localhost:4000
+ * REACT_CARE_FE_URL   CARE frontend, default http://localhost:4000
  * REACT_CARE_API_URL  CARE backend,  default http://localhost:9000
  */
-export const CARE_FE_URL = process.env.CARE_FE_URL ?? "http://localhost:4000";
+export const CARE_FE_URL =
+  process.env.REACT_CARE_FE_URL ?? "http://localhost:4000";
 
 export default defineConfig({
   testDir: "./tests",

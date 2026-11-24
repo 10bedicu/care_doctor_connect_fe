@@ -4,8 +4,8 @@ name: Playwright Tests
 # Modelled on ohcnetwork/care_fe's Playwright workflow, in a single job:
 # - Backend: the published ghcr.io/ohcnetwork/care image with care_fe's CI
 #   compose overlay, migrated and loaded with `load_fixtures`.
-# - Frontend: care_fe built with REACT_ENABLED_APPS pointing at this plugin's
-#   build, which is served on localhost:5173.
+# - Frontend: care_fe, with this plugin's build served on localhost:5173 and
+#   enabled through a plugin config (what Admin → Apps creates).
 
 on:
   push:
@@ -29,7 +29,7 @@ concurrency:
 env:
   NODE_VERSION: "24"
   CARE_FE_REF: ${{ inputs.care_fe_ref || 'develop' }}
-  CARE_FE_URL: http://localhost:4000
+  REACT_CARE_FE_URL: http://localhost:4000
   REACT_CARE_API_URL: http://localhost:9000
   PLUGIN_URL: http://localhost:5173
   # care's db/redis/minio plus care_fe's CI backend services. Relative paths
@@ -114,11 +114,10 @@ jobs:
         working-directory: care_fe
         run: npm ci
 
-      - name: Build care_fe with the plugin enabled
+      - name: Build care_fe
         working-directory: care_fe
         env:
           NODE_ENV: production
-          REACT_ENABLED_APPS: ${{ github.repository }}@localhost:5173/assets/remoteEntry.js
         run: npm run build
 
       - name: Serve care_fe
@@ -141,13 +140,30 @@ jobs:
 
       - name: Wait for the plugin and care_fe
         run: |
-          for url in "$PLUGIN_URL/assets/remoteEntry.js" "$CARE_FE_URL" "$REACT_CARE_API_URL/ping/"; do
+          for url in "$PLUGIN_URL/assets/remoteEntry.js" "$REACT_CARE_FE_URL" "$REACT_CARE_API_URL/ping/"; do
             if ! timeout 120 bash -c "until curl -fsS '$url' > /dev/null; do sleep 1; done"; then
               cat plugin-preview.log care-fe-preview.log || true
               echo "::error::$url did not respond"
               exit 1
             fi
           done
+
+      # Enable the plugin the preferred way, with a plugin config (what
+      # Admin → Apps creates), rather than the deprecated REACT_ENABLED_APPS.
+      # The slug and name must be care_doctor_connect_fe, the plugin's
+      # translation namespace.
+      - name: Enable the plugin
+        shell: bash
+        run: |
+          token=$(curl -sS --fail-with-body "$REACT_CARE_API_URL/api/v1/auth/login/" \
+            -H "Content-Type: application/json" \
+            -d '{"username": "admin", "password": "admin"}' | jq -r .access)
+          jq -nc --arg url "$PLUGIN_URL/assets/remoteEntry.js" \
+            '{slug: "care_doctor_connect_fe", meta: {url: $url, name: "care_doctor_connect_fe"}}' \
+            | curl -sS --fail-with-body "$REACT_CARE_API_URL/api/v1/plug_config/" \
+              -H "Authorization: Bearer $token" \
+              -H "Content-Type: application/json" \
+              -d @-
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6

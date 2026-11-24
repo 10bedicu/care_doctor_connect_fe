@@ -57,11 +57,18 @@ npm install
 npm run start    # builds in watch mode and serves on http://localhost:6173
 ```
 
-Then enable the plugin in your local CARE frontend's `.env.local` (or via the admin Apps page) by pointing `REACT_ENABLED_APPS` at the plugin's federation entry:
+Then enable the plugin in your local CARE with a plugin config. As an admin, go to **Admin → Apps**, create a config with the slug `care_doctor_connect_fe`, and set its meta JSON to the plugin's federation entry:
 
-```bash
-REACT_ENABLED_APPS="10bedicu/care_doctor_connect_fe@localhost:6173/assets/remoteEntry.js"
+```json
+{
+  "url": "http://localhost:6173/assets/remoteEntry.js",
+  "name": "care_doctor_connect_fe"
+}
 ```
+
+Keep the slug and `name` as `care_doctor_connect_fe`: CARE loads the plugin's translations under that name. Add any [configuration keys](#supported-keys) to the same JSON.
+
+> The older way, `REACT_ENABLED_APPS="10bedicu/care_doctor_connect_fe@localhost:6173/assets/remoteEntry.js"` in the CARE frontend's `.env.local`, still works but is deprecated.
 
 ### Build
 
@@ -86,6 +93,6 @@ npx playwright install chromium   # first time only
 npm run test:e2e
 ```
 
-Override the URLs with `CARE_FE_URL` and `REACT_CARE_API_URL` if yours differ.
+Override the URLs with `REACT_CARE_FE_URL` and `REACT_CARE_API_URL` if yours differ.
 
-CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop` built with this plugin enabled.
+CI runs the same tests on every pull request (`.github/workflows/playwright.yaml`), against the published CARE backend image and care_fe `develop`, with this plugin enabled through a plugin config.
